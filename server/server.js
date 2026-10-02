@@ -8,6 +8,8 @@ const app = express();
 app.use(express.json());
 app.use('/api/auth', require('./routes/auth'));
 
+app.use('/api/artworks', require('./routes/artworks'));
+
 mongoose.connect(process.env.MONGO_URI)
     .then(() => console.log('Connected to MongoDB'))
     .catch((err) => console.error('MongoDB connection error:', err));
