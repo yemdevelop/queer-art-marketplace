@@ -3,6 +3,7 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const Artwork = require('../models/Artwork');
 const requireAuth = require('../middleware/auth');
+const loadOwnedArtwork = require('../middleware/loadOwnedArtwork');
 
 // Fields an artist may set; status and editionsSold are managed by the server
 const EDITABLE_FIELDS = [
@@ -54,21 +55,10 @@ router.get('/:id', async (req, res) => {
     }
 });
 
-router.delete('/:id', requireAuth, async (req, res) => {
+router.delete('/:id', requireAuth, loadOwnedArtwork, async (req, res) => {
+    const artwork = req.artwork;
+
     try {
-        if (!mongoose.isValidObjectId(req.params.id)) {
-            return res.status(404).json({ error: 'Artwork not found' });
-        }
-
-        const artwork = await Artwork.findById(req.params.id);
-        if (!artwork) {
-            return res.status(404).json({ error: 'Artwork not found' });
-        }
-
-        if (artwork.artist.toString() !== req.user.userId) {
-            return res.status(403).json({ error: 'You can only delete your own listing' });
-        }
-
         if (artwork.status !== 'available' || artwork.editionsSold > 0) {
             return res.status(409).json({
                 error: 'Cannot delete a listing that has sales'
@@ -84,21 +74,10 @@ router.delete('/:id', requireAuth, async (req, res) => {
     }
 });
 
-router.patch('/:id', requireAuth, async (req, res) => {
+router.patch('/:id', requireAuth, loadOwnedArtwork, async (req, res) => {
+    const artwork = req.artwork;
+
     try {
-        if (!mongoose.isValidObjectId(req.params.id)) {
-            return res.status(404).json({ error: 'Artwork not found' });
-        }
-
-        const artwork = await Artwork.findById(req.params.id);
-        if (!artwork) {
-            return res.status(404).json({ error: 'Artwork not found' });
-        }
-
-        if (artwork.artist.toString() !== req.user.userId) {
-            return res.status(403).json({ error: 'You can only edit your own listing' });
-        }
-
         if (artwork.status !== 'available' || artwork.editionsSold > 0) {
             return res.status(409).json({
                 error: 'Cannot edit a listing that has sales'
@@ -108,7 +87,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
         for (const key of EDITABLE_FIELDS) {
             if (req.body[key] !== undefined) artwork[key] = req.body[key];
         }
-        
+
         await artwork.save();
         res.status(200).json(artwork);
     } catch (err) {
