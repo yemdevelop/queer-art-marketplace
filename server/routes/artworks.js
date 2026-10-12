@@ -54,4 +54,66 @@ router.get('/:id', async (req, res) => {
     }
 });
 
+router.delete('/:id', requireAuth, async (req, res) => {
+    try {
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(404).json({ error: 'Artwork not found' });
+        }
+
+        const artwork = await Artwork.findById(req.params.id);
+        if (!artwork) {
+            return res.status(404).json({ error: 'Artwork not found' });
+        }
+
+        if (artwork.artist.toString() !== req.user.userId) {
+            return res.status(403).json({ error: 'You can only delete your own listing' });
+        }
+
+        if (artwork.status !== 'available' || artwork.editionsSold > 0) {
+            return res.status(409).json({
+                error: 'Cannot delete a listing that has sales'
+            });
+        }
+
+        await artwork.deleteOne();
+        res.status(200).json({
+            message: 'Artwork successfully deleted'
+        });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to delete artwork' });
+    }
+});
+
+router.patch('/:id', requireAuth, async (req, res) => {
+    try {
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(404).json({ error: 'Artwork not found' });
+        }
+
+        const artwork = await Artwork.findById(req.params.id);
+        if (!artwork) {
+            return res.status(404).json({ error: 'Artwork not found' });
+        }
+
+        if (artwork.artist.toString() !== req.user.userId) {
+            return res.status(403).json({ error: 'You can only edit your own listing' });
+        }
+
+        if (artwork.status !== 'available' || artwork.editionsSold > 0) {
+            return res.status(409).json({
+                error: 'Cannot edit a listing that has sales'
+            });
+        }
+
+        for (const key of EDITABLE_FIELDS) {
+            if (req.body[key] !== undefined) artwork[key] = req.body[key];
+        }
+        
+        await artwork.save();
+        res.status(200).json(artwork);
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
 module.exports = router;
