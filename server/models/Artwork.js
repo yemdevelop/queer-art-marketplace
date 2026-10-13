@@ -22,4 +22,9 @@ const artworkSchema = new mongoose.Schema({
     downloadLimit: { type: Number },
 }, { timestamps: true });
 
+// A listing with any sales is locked: it can't be edited or deleted
+artworkSchema.methods.hasSales = function () {
+    return this.status !== 'available' || this.editionsSold > 0;
+};
+
 module.exports = mongoose.model('Artwork', artworkSchema);

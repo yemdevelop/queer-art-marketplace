@@ -17,9 +17,10 @@ router.post('/', requireAuth, async (req, res) => {
             return res.status(403).json({ error: 'Only artists can create listings' });
         }
 
+        const body = req.body ?? {};
         const fields = {};
         for (const key of EDITABLE_FIELDS) {
-            if (req.body[key] !== undefined) fields[key] = req.body[key];
+            if (body[key] !== undefined) fields[key] = body[key];
         }
 
         const artwork = new Artwork({ ...fields, artist: req.user.userId });
@@ -51,7 +52,7 @@ router.get('/:id', async (req, res) => {
         }
         res.json(artwork);
     } catch (err) {
-        res.status(400).json({ error: err.message });
+        res.status(500).json({ error: 'Failed to fetch artwork' });
     }
 });
 
@@ -59,7 +60,7 @@ router.delete('/:id', requireAuth, loadOwnedArtwork, async (req, res) => {
     const artwork = req.artwork;
 
     try {
-        if (artwork.status !== 'available' || artwork.editionsSold > 0) {
+        if (artwork.hasSales()) {
             return res.status(409).json({
                 error: 'Cannot delete a listing that has sales'
             });
@@ -78,14 +79,15 @@ router.patch('/:id', requireAuth, loadOwnedArtwork, async (req, res) => {
     const artwork = req.artwork;
 
     try {
-        if (artwork.status !== 'available' || artwork.editionsSold > 0) {
+        if (artwork.hasSales()) {
             return res.status(409).json({
                 error: 'Cannot edit a listing that has sales'
             });
         }
 
+        const body = req.body ?? {};
         for (const key of EDITABLE_FIELDS) {
-            if (req.body[key] !== undefined) artwork[key] = req.body[key];
+            if (body[key] !== undefined) artwork[key] = body[key];
         }
 
         await artwork.save();
